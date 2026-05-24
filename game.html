@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beach Grills Lucky Draw</title>
+    <style>
+        * {
+            box-style: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f57c00, #1976d2);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #white;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #d32f2f;
+            margin-bottom: 5px;
+            font-size: 28px;
+            text-transform: uppercase;
+        }
+
+        p {
+            color: #555;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+
+        /* Wheel Container */
+        .wheel-box {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto 30px auto;
+        }
+
+        /* The Pointer Arrow */
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #d32f2f;
+            z-index: 10;
+        }
+
+        /* Canvas Wheel */
+        canvas {
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            transition: transform 4s cubic-bezier(0.1, 0.8, 0.1, 1);
+        }
+
+        /* Spin Button */
+        .spin-btn {
+            background: #f57c00;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(245, 124, 0, 0.4);
+            transition: 0.2s;
+        }
+
+        .spin-btn:hover {
+            background: #e64a19;
+            transform: translateY(-2px);
+        }
+
+        .spin-btn:disabled {
+            background: #999;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Popup Modal for Winner */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .coupon {
+            border: 2px dashed #f57c00;
+            background: #fff8e1;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 22px;
+            font-weight: bold;
+            color: #d32f2f;
+            border-radius: 8px;
+        }
+
+        .close-btn {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+    <!-- Canvas Confetti Library for celebration effect -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Beach Grills</h1>
+        <p>Spin the lucky wheel to unlock instant dining rewards!</p>
+        
+        <div class="wheel-box">
+            <div class="pointer"></div>
+            <canvas id="wheel" width="320" height="320"></canvas>
+        </div>
+
+        <button class="spin-btn" id="spinBtn" onclick="spinWheel()">SPIN NOW!</button>
+    </div>
+
+    <!-- Win Popup -->
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2>🎉 Congratulations! 🎉</h2>
+            <p style="margin-top: 10px;">You won a special reward for your next visit:</p>
+            <div class="coupon" id="prizeText">Free Appetizer!</div>
+            <p style="font-size: 13px; color: #777; margin-bottom: 15px;">Take a screenshot and show it to our staff to redeem!</p>
+            <button class="close-btn" onclick="closeModal()">Awesome!</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        
+        // Rewards matches the layout in watermarked_img_13501344629111247852.png
+        const prizes = [
+            "Free Main Course!", 
+            "20% Off Your Meal!", 
+            "Buy 1 Get 1 Drink!", 
+            "Win a Drink!", 
+            "Complimentary Dessert!", 
+            "Try Again!", 
+            "50% Off Grills!", 
+            "Surprise Gift!", 
+            "Free Appetizer!",
+            "Surprise Gift!"
+        ];
+        
+        const colors = ['#00bfa5', '#0097a7', '#7b1fa2', '#e64a19', '#ffa000', '#7b1fa2', '#fbc02d', '#9c27b0', '#e64a19', '#0097a7'];
+        const numSegments = prizes.length;
+        const anglePerSegment = (2 * Math.PI) / numSegments;
+        let currentRotation = 0;
+
+        // Draw the wheel segments
+        function drawWheel() {
+            const radius = canvas.width / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < numSegments; i++) {
+                const theta = i * anglePerSegment;
+                
+                // Draw slice
+                ctx.beginPath();
+                ctx.fillStyle = colors[i];
+                ctx.moveTo(radius, radius);
+                ctx.arc(radius, radius, radius, theta, theta + anglePerSegment);
+                ctx.lineTo(radius, radius);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw text labels
+                ctx.save();
+                ctx.translate(radius, radius);
+                ctx.rotate(theta + anglePerSegment / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Arial';
+                
+                // Wrap text if needed or simple truncate
+                let text = prizes[i];
+                ctx.fillText(text, radius - 15, 5);
+                ctx.restore();
+            }
+
+            // Inner center decoration circle
+            ctx.beginPath();
+            ctx.arc(radius, radius, 30, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#d32f2f';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+
+        // Spin Logic
+        function spinWheel() {
+            spinBtn.disabled = true;
+            
+            // Generate a random spin amount (minimum 5 full spins + random angle)
+            const absoluteExtraDegrees = Math.floor(Math.random() * 360);
+            const totalSpinDegrees = (360 * 6) + absoluteExtraDegrees; 
+            currentRotation += totalSpinDegrees;
+            
+            // Apply CSS transition animation
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+            
+            // Calculate which segment lands at the top pointer (90 degrees / -270 degrees adjustment)
+            setTimeout(() => {
+                const finalNormalizedAngle = (360 - (currentRotation % 360) + 270) % 360;
+                const winningIndex = Math.floor(finalNormalizedAngle / (360 / numSegments)) % numSegments;
+                
+                showWinner(prizes[winningIndex]);
+            }, 4000); // Must match the 4s CSS transition time
+        }
+
+        function showWinner(prize) {
+            // Trigger confetti blast!
+            confetti({
+                particleCount: 150,
+                spread: 80,
+                origin: { y: 0.6 }
+            });
+
+            document.getElementById('prizeText').innerText = prize;
+            document.getElementById('winModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('winModal').style.display = 'none';
+            spinBtn.disabled = false;
+        }
+
+        // Initialize wheel drawing on page load
+        drawWheel();
+    </script>
+</body>
+</html>
